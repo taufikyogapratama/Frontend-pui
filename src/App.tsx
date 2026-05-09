@@ -92,9 +92,7 @@ const App = () => {
       setIsResultOpen(true);
     } catch (error) {
       console.error("Error saat klasifikasi:", error);
-      alert(
-        "Gagal terhubung ke API peladen! Pastikan Ngrok dan FastAPI menyala.",
-      );
+      alert("Gagal terhubung ke server backend");
       setIsScanning(false);
     }
   }, []);
