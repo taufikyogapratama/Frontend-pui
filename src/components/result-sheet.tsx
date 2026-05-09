@@ -21,7 +21,7 @@ export function ResultSheet({
   if (!isOpen || !result || !rawLabel) return null;
 
   const isRipe = result === "ripe";
-  const displayLabel = rawLabel === "Belum Matang" ? "Mentah" : rawLabel;
+  const displayLabel = rawLabel === "Belum Matang" ? "Belum Matang" : rawLabel;
 
   return (
     <>
