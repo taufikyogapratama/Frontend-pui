@@ -4,13 +4,30 @@ import { ControlPanel } from "@/components/control-panel";
 import { ResultSheet, type RipenessResult } from "@/components/result-sheet";
 import { Header } from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Apple, Ban } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 
+// Fungsi compressImage yang disempurnakan (tanpa merusak warna asli)
 const compressImage = (imageSrc: string): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      const max_size = 500;
+      // Hanya ubah ukuran jika terlalu besar, tapi jangan terlalu kecil
+      // 800px adalah batas aman agar OpenCV tidak kehilangan detail penting
+      const max_size = 800;
       let width = img.width;
       let height = img.height;
 
@@ -31,14 +48,19 @@ const compressImage = (imageSrc: string): Promise<Blob> => {
       const ctx = canvas.getContext("2d");
 
       if (ctx) {
+        // Menggambar ulang dengan kualitas terbaik (tanpa smoothing yang merusak warna)
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, width, height);
+
+        // Ubah menjadi PNG untuk mempertahankan warna asli (Lossless)
+        // atau tetap JPEG tapi dengan kualitas maksimal (1.0)
         canvas.toBlob(
           (blob: Blob | null) => {
             if (blob) resolve(blob);
             else reject(new Error("Canvas to Blob failed"));
           },
-          "image/jpeg",
-          0.8,
+          "image/png" // PNG jauh lebih baik untuk OpenCV masking daripada JPEG
         );
       } else {
         reject(new Error("Canvas context is null"));
@@ -61,6 +83,7 @@ const App = () => {
   const [isResultOpen, setIsResultOpen] = useState<boolean>(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [captureTrigger, setCaptureTrigger] = useState<number>(0);
+  const [isTomat, setIsTomat] = useState<boolean>(false)
 
   const classifyTomato = useCallback(async (imageData: string) => {
     setImagePreview(imageData);
@@ -72,24 +95,37 @@ const App = () => {
       const formData = new FormData();
       formData.append("file", compressedBlob, "tomat.jpg");
 
+      // ===== Production ======
       const response = await fetch(`${import.meta.env.VITE_API_URL}/prediksi`, {
         method: "POST",
         headers: { "ngrok-skip-browser-warning": "69420" },
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error("Gagal merespons dari server");
-      }
+      // ===== Development =====
+      // const response = await fetch(`${import.meta.env.VITE_API_URL_DEV}/prediksi`, {
+      //   method: "POST",
+      //   body: formData
+      // });
+      //
+      // if (!response.ok) {
+      //   throw new Error("Gagal merespons dari server");
+      // }
 
       const data: ApiResponse = await response.json();
-      const isRipe = data.hasil_mlp === "Matang";
+      if (data.hasil_mlp === "Bukan Tomat") {
+        setIsTomat(true)
+        setIsScanning(false);
+      } else {
+        const isRipe = data.hasil_mlp === "Matang";
 
-      setResult(isRipe ? "ripe" : "unripe");
-      setRawLabel(data.hasil_mlp);
+        setResult(isRipe ? "ripe" : "unripe");
+        setRawLabel(data.hasil_mlp);
 
-      setIsScanning(false);
-      setIsResultOpen(true);
+        setIsScanning(false);
+        setIsResultOpen(true);
+
+      }
     } catch (error) {
       console.error("Error saat klasifikasi:", error);
       alert("Gagal terhubung ke server backend");
@@ -163,6 +199,31 @@ const App = () => {
           onClose={handleCloseResult}
           imagePreview={imagePreview}
         />
+
+        <AlertDialog open={isTomat} onOpenChange={setIsTomat}>
+          <AlertDialogContent size="sm" className="rounded-xl">
+            <AlertDialogHeader>
+              <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive rounded-md">
+                {/* Ikon Buah di belakang */}
+                <Apple className="h-6 w-6 opacity-70" />
+
+                {/* Ikon Coretan Merah di depan (tumpang tindih) */}
+                <Ban className="h-10 w-10 absolute text-destructive stroke-[2.5]" />              </AlertDialogMedia>
+              <AlertDialogTitle>Bukan Tomat</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sistem mendeteksi bahwa objek tidak memiliki warna atau bentuk yang memenuhi kriteria tomat. Silakan coba objek lain.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel asChild>
+                <Button variant="outline" onClick={() => { setIsTomat(false) }} className="rounded-md">
+                  Coba Lagi
+                </Button>
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </main>
     </ThemeProvider>
   );
