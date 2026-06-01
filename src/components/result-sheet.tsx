@@ -102,19 +102,12 @@ export function ResultSheet({
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div>
               <Button
-                variant="outline"
-                className="flex-1 rounded-xl py-6 font-semibold"
+                className="w-full md:w-40 rounded-xl bg-primary py-6 font-semibold text-primary-foreground hover:bg-primary/90"
                 onClick={onClose}
               >
-                Scan Lagi
-              </Button>
-              <Button
-                className="flex-1 rounded-xl bg-primary py-6 font-semibold text-primary-foreground hover:bg-primary/90"
-                onClick={onClose}
-              >
-                Selesai
+                Ok
               </Button>
             </div>
           </div>
